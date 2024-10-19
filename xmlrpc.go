@@ -151,7 +151,6 @@ func (p *XMLRPC) startHTTPServer(user string, password string, protocol string, 
 	supervisorRestHandler := NewSupervisorRestful(s).CreateSupervisorHandler()
 	mux.Handle("/supervisor/", newHTTPBasicAuth(user, password, supervisorRestHandler))
 
-	// 有bug已弃用
 	logtailHandler := NewLogtail(s).CreateHandler()
 	mux.Handle("/logtail/", newHTTPBasicAuth(user, password, logtailHandler))
 

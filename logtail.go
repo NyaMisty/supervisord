@@ -1,9 +1,11 @@
 package main
 
 import (
-	"fmt"
-	"github.com/ochinchina/supervisord/logger"
+	"bufio"
 	"net/http"
+	"time"
+
+	"github.com/ochinchina/supervisord/logger"
 
 	"github.com/gorilla/mux"
 )
@@ -58,37 +60,45 @@ func (lt *Logtail) getLog(logType string, w http.ResponseWriter, req *http.Reque
 		return
 	}
 
-	s, err := compositeLogger.ReadLog(0, 0)
-	if err != nil {
-		fmt.Println(err)
-		w.WriteHeader(http.StatusBadRequest)
-		return
-	}
+	// s, err := compositeLogger.ReadLog(0, 0)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// 	w.WriteHeader(http.StatusBadRequest)
+	// 	return
+	// }
+	// w.Header().Set("Transfer-Encoding", "chunked")
+	// w.WriteHeader(http.StatusOK)
+
+	// w.Write([]byte(s))
 	w.Header().Set("Transfer-Encoding", "chunked")
 	w.WriteHeader(http.StatusOK)
+	flusher, ok := w.(http.Flusher)
+	if !ok {
+		w.WriteHeader(http.StatusInternalServerError)
+	}
 
-	w.Write([]byte(s))
-	//
-	//if ok {
-	//	w.Header().Set("Transfer-Encoding", "chunked")
-	//	w.WriteHeader(http.StatusOK)
-	//	flusher, _ := w.(http.Flusher)
-	//	ch := make(chan []byte, 100)
-	//	chanLogger := logger.NewChanLogger(ch)
-	//	compositeLogger.AddLogger(chanLogger)
-	//	for {
-	//		text, ok := <-ch
-	//		if !ok {
-	//			break
-	//		}
-	//		_, err := w.Write(text)
-	//		if err != nil {
-	//			break
-	//		}
-	//		flusher.Flush()
-	//	}
-	//	compositeLogger.RemoveLogger(chanLogger)
-	//	_ = chanLogger.Close()
-	//}
+	// a bigger buffer for both writer and chan so that the chan won't get blocked
+	ww := bufio.NewWriterSize(w, 1*1024*1024)
+	ch := make(chan []byte, 1000)
 
+	chanLogger := logger.NewChanLogger(ch)
+	defer chanLogger.Close() // the ch will get closed in this call
+	compositeLogger.AddLogger(chanLogger)
+	// ensure the destruct order, defer is LIFO, firstly remove logger, then close chan
+	defer compositeLogger.RemoveLogger(chanLogger)
+	for {
+		select {
+		case text, ok := <-ch:
+			if !ok {
+				return
+			}
+			_, err := ww.Write(text)
+			if err != nil {
+				return
+			}
+		case <-time.After(500 * time.Millisecond): // 500ms flush timeout
+			ww.Flush()
+			flusher.Flush()
+		}
+	}
 }

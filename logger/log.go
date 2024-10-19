@@ -358,7 +358,14 @@ func (l *ChanLogger) SetPid(pid int) {
 
 // Write log to the channel
 func (l *ChanLogger) Write(p []byte) (int, error) {
-	l.channel <- p
+	select {
+	case l.channel <- p:
+		// Write log successfully
+	default:
+		// chan blocked, should not happen (request block or etc. , don't wait)
+		//  and don't throw error to parents
+	}
+
 	return len(p), nil
 }
 
