@@ -170,8 +170,6 @@ github.com/ochinchina/go-daemon v0.1.5 h1:XZoQ1NUXfeIGkU5rgbAwiNb1sr5btc2NbUqYUX
 github.com/ochinchina/go-daemon v0.1.5/go.mod h1:oqEZ8HaYtoTxjkIpaizQ75VT5PWgpVeIennFIYSIkzQ=
 github.com/ochinchina/go-ini v1.0.1 h1:qrKGrgxJjY+4H8aV7B2HPohShzHGrymW+/X1Gx933zU=
 github.com/ochinchina/go-ini v1.0.1/go.mod h1:Tqs5+JmccLSNMX1KXbbyG/B3ro4J9uXVYC5U5VOeRE8=
-github.com/ochinchina/go-reaper v0.0.0-20181016012355-6b11389e79fc h1:oyaVoTfmN7Xe06URvpaKK8GDZr0YJFKhmKi37rE0a3c=
-github.com/ochinchina/go-reaper v0.0.0-20181016012355-6b11389e79fc/go.mod h1:SmX+KYO+b7mEApGBUNwjdJpRQwAdb0Rlzoh8G77K55I=
 github.com/ochinchina/gorilla-xmlrpc v0.0.0-20171012055324-ecf2fe693a2c h1:6xgMUqscagnZicBedm1h4T3q6IQHbrrZp7bker+toOI=
 github.com/ochinchina/gorilla-xmlrpc v0.0.0-20171012055324-ecf2fe693a2c/go.mod h1:/gFmJ8Das0jFgYxzt/RkvAO62T/ZPcyTaZlOkEBu/jw=
 github.com/pkg/errors v0.8.0/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
@@ -204,6 +202,8 @@ github.com/prometheus/procfs v0.1.3/go.mod h1:lV6e/gmhEcM9IjHGsFOCxxuZ+z1YqCvr4O
 github.com/prometheus/procfs v0.6.0/go.mod h1:cz+aTbrPOrUb4q7XlbU9ygM+/jj0fzG6c1xBZuNvfVA=
 github.com/prometheus/procfs v0.7.3 h1:4jVXhlkAyzOScmCkXBTOLRLTz8EeU+eyjrwB/EPq0VU=
 github.com/prometheus/procfs v0.7.3/go.mod h1:cz+aTbrPOrUb4q7XlbU9ygM+/jj0fzG6c1xBZuNvfVA=
+github.com/ramr/go-reaper v0.2.1 h1:zww+wlQOvTjBZuk1920R/e0GFEb6O7+B0WQLV6dM924=
+github.com/ramr/go-reaper v0.2.1/go.mod h1:AVypdzrcCXjSc/JYnlXl8TsB+z84WyFzxWE8Jh0MOJc=
 github.com/robfig/cron/v3 v3.0.1 h1:WdRxkvbJztn8LMz/QEvLN5sBU+xKpSqwwUO1Pjr4qDs=
 github.com/robfig/cron/v3 v3.0.1/go.mod h1:eQICP3HwyT7UooqI/z+Ov+PtYAWygg1TEWWzGIFLtro=
 github.com/rogpeppe/go-charset v0.0.0-20190617161244-0dc95cdf6f31 h1:DE4LcMKyqAVa6a0CGmVxANbnVb7stzMmPkQiieyNmfQ=
