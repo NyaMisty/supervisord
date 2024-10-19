@@ -5,11 +5,13 @@ import (
 	"encoding/hex"
 	"fmt"
 	"io"
+	"io/fs"
 	"io/ioutil"
 	"net"
 	"net/http"
 	_ "net/http/pprof"
 	"os"
+	"path"
 	"path/filepath"
 	"strings"
 
@@ -135,6 +137,55 @@ func readLogHtml(writer http.ResponseWriter, request *http.Request) {
 	writer.Write(b)
 }
 
+type FileWithFilter struct {
+	http.File
+	Path       string
+	FilterFunc func(path string) (show bool)
+}
+
+func (f *FileWithFilter) Readdir(count int) ([]fs.FileInfo, error) {
+	ret, err := f.File.Readdir(count)
+	if err != nil {
+		return nil, err
+	}
+	ret2 := []fs.FileInfo{}
+	for _, fi := range ret {
+		if !f.FilterFunc(f.Path + "/" + fi.Name()) {
+			continue
+		}
+		ret2 = append(ret2, fi)
+	}
+	return ret2, nil
+}
+
+type DirWithFilter struct {
+	http.Dir
+	FilterFunc func(path string) (show bool)
+}
+
+func (d *DirWithFilter) Open(name string) (http.File, error) {
+	if !d.FilterFunc(name) {
+		return nil, fmt.Errorf("forbidden")
+	}
+	f, err := d.Dir.Open(name)
+	if err != nil {
+		return nil, err
+	}
+
+	return &FileWithFilter{
+		File:       f,
+		Path:       name,
+		FilterFunc: d.FilterFunc,
+	}, nil
+}
+
+func NewDirWithFilter(dir string, filterFunc func(path string) (show bool)) *DirWithFilter {
+	return &DirWithFilter{
+		Dir:        http.Dir(dir),
+		FilterFunc: filterFunc,
+	}
+}
+
 func (p *XMLRPC) startHTTPServer(user string, password string, protocol string, listenAddr string, s *Supervisor, startedCb func()) {
 	if p.isHTTPServerStartedOnProtocol(protocol) {
 		startedCb()
@@ -194,8 +245,23 @@ func (p *XMLRPC) startHTTPServer(user string, password string, protocol string, 
 			continue
 		}
 		dir := filepath.Dir(filePath)
-		fmt.Println(dir)
-		mux.Handle("/log/"+realName+"/", http.StripPrefix("/log/"+realName+"/", http.FileServer(http.Dir(dir))))
+		name := filepath.Base(filePath)
+		mux.Handle("/log/"+realName+"/", http.StripPrefix("/log/"+realName+"/", http.FileServer(NewDirWithFilter(dir, func(path_ string) (show bool) {
+			path_ = path.Clean(path_) // don't use filepath.Clean on windows it will give \\
+			relpath := strings.Trim(path_, "/\\") // path will be /XXXXX or //XXXXX
+			if relpath == "" {
+				// allow root dir listing
+				return true
+			}
+			if !strings.HasPrefix(relpath, name) {
+				return false
+			}
+			if strings.Contains(relpath, "/") || strings.Contains(relpath, "\\") {
+				// we only allow one level
+				return false
+			}
+			return true
+		}))))
 	}
 
 	listener, err := net.Listen(protocol, listenAddr)
