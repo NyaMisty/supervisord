@@ -14,8 +14,9 @@ builds:
     binary: supervisord
     env:
       - CGO_ENABLED=0
+    # do not remove debug info, use UPX instead
     ldflags:
-      - "-s -w"
+      - -X main.build={{.Version}}
     flags:
       - -tags=release
     goos:
@@ -29,6 +30,9 @@ builds:
     goarm:
       - "6"
       - "7"
+    # hooks:
+    #   post:
+    #     - cmd: upx "{{ .Path }}"
 
   - id: static
     binary: supervisord
@@ -53,9 +57,9 @@ builds:
         goarch: arm64
         env:
           - CC=aarch64-linux-gnu-gcc
-    hooks:
-      post:
-        - cmd: upx "{{ .Path }}"
+    # hooks:
+    #   post:
+    #     - cmd: upx "{{ .Path }}"
 
 archives:
 
