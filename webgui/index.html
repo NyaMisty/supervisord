@@ -158,9 +158,10 @@
                 action = action + '<button type="button" disabled class="btn btn-primary mr-1" onclick="restartProgram(\'' + programs[i]['name'] + '\');">ReStart</button>';
                 color = "red";
             }
-            let logLabel = '<a href=/log/' + programs[i]['name'] + '>日志列表 </a>';
+            let logTailLabel = '<button type="button" class="btn btn-primary mr-1" onclick="window.open(\'/logtail/' + programs[i]['name'] + '\')">LogTail</button>'
+            let logLabel = '<button type="button" class="btn btn-primary mr-1" onclick="window.open(\'/log/' + programs[i]['name'] + '\')">LogList</button>'
 
-            action = action + logLabel;
+            action = action + logTailLabel + logLabel;
 
             programs[i]['action'] = action;
             programs[i]['statename'] = '<div style="background-color:' + color + ';">' + statename + '</div>';
