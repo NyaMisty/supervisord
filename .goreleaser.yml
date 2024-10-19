@@ -95,9 +95,10 @@ archives:
       - none*
 
 release:
-  github:
-    owner: ochinchina
-    name: supervisord
+  # don't use this because goreleaser will extract this automatically
+  # github:
+  #   owner: ochinchina
+  #   name: supervisord
   draft: false
   prerelease: auto
   name_template: "{{.ProjectName}}-v{{.Version}}"
