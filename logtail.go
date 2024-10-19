@@ -23,9 +23,14 @@ func NewLogtail(supervisor *Supervisor) *Logtail {
 
 // CreateHandler creates http handlers to process the program stdout and stderr through http interface
 func (lt *Logtail) CreateHandler() http.Handler {
+	lt.router.HandleFunc("/logtail/{program}", lt.getAllLog).Methods("GET")
 	lt.router.HandleFunc("/logtail/{program}/stdout", lt.getStdoutLog).Methods("GET")
 	lt.router.HandleFunc("/logtail/{program}/stderr", lt.getStderrLog).Methods("GET")
 	return lt.router
+}
+
+func (lt *Logtail) getAllLog(w http.ResponseWriter, req *http.Request) {
+	lt.getLog("all", w, req)
 }
 
 func (lt *Logtail) getStdoutLog(w http.ResponseWriter, req *http.Request) {
@@ -48,29 +53,32 @@ func (lt *Logtail) getLog(logType string, w http.ResponseWriter, req *http.Reque
 	}
 
 	var ok bool = false
-	var compositeLogger *logger.CompositeLogger = nil
+	var compositeLoggers []*logger.CompositeLogger
 	if logType == "stdout" {
-		compositeLogger, ok = proc.StdoutLog.(*logger.CompositeLogger)
-	} else {
-		compositeLogger, ok = proc.StderrLog.(*logger.CompositeLogger)
+		if compositeLogger, ok := proc.StdoutLog.(*logger.CompositeLogger); ok {
+			compositeLoggers = append(compositeLoggers, compositeLogger)
+		}
+	} else if logType == "stderr" {
+		if compositeLogger, ok := proc.StderrLog.(*logger.CompositeLogger); ok {
+			compositeLoggers = append(compositeLoggers, compositeLogger)
+		}
+	} else if logType == "all" {
+		if compositeLogger, ok := proc.StdoutLog.(*logger.CompositeLogger); ok {
+			compositeLoggers = append(compositeLoggers, compositeLogger)
+		}
+		if compositeLogger, ok := proc.StderrLog.(*logger.CompositeLogger); ok {
+			compositeLoggers = append(compositeLoggers, compositeLogger)
+		}
 	}
 
-	if !ok {
+	if len(compositeLoggers) == 0 {
 		w.WriteHeader(http.StatusBadRequest)
 		return
 	}
 
-	// s, err := compositeLogger.ReadLog(0, 0)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// 	w.WriteHeader(http.StatusBadRequest)
-	// 	return
-	// }
-	// w.Header().Set("Transfer-Encoding", "chunked")
-	// w.WriteHeader(http.StatusOK)
-
-	// w.Write([]byte(s))
+	// https://stackoverflow.com/questions/26769626/send-a-chunked-http-response-from-a-go-server
 	w.Header().Set("Transfer-Encoding", "chunked")
+	w.Header().Set("X-Content-Type-Options", "nosniff") // make chrome doesn't block output
 	w.WriteHeader(http.StatusOK)
 	flusher, ok := w.(http.Flusher)
 	if !ok {
@@ -83,9 +91,11 @@ func (lt *Logtail) getLog(logType string, w http.ResponseWriter, req *http.Reque
 
 	chanLogger := logger.NewChanLogger(ch)
 	defer chanLogger.Close() // the ch will get closed in this call
-	compositeLogger.AddLogger(chanLogger)
-	// ensure the destruct order, defer is LIFO, firstly remove logger, then close chan
-	defer compositeLogger.RemoveLogger(chanLogger)
+	for _, compositeLogger := range compositeLoggers {
+		compositeLogger.AddLogger(chanLogger)
+		// ensure the destruct order, defer is LIFO, firstly remove logger, then close chan
+		defer compositeLogger.RemoveLogger(chanLogger)
+	}
 	for {
 		select {
 		case text, ok := <-ch:
