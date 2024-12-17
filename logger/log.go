@@ -61,7 +61,22 @@ type ChanLogger struct {
 
 // CompositeLogger dispatch the log message to other loggers
 type CompositeLogger struct {
-	lock    sync.Mutex
+	lock sync.RWMutex // 必须用RW锁，参考下面的例子： Write 时logger的lock锁上后，子logger还需要锁process来拿description，但在进程快速重启时，另一个线程process.lock锁上后继续调用logger的Close方法，导致循环等待
+	// 使用RW锁让 Close 方法和 Write 方法可以同时持有锁，避免死锁
+	//#	0x468ac4	sync.runtime_SemacquireMutex+0x24								/opt/hostedtoolcache/go/1.18.10/x64/src/runtime/sema.go:71
+	//#	0x891498	sync.(*RWMutex).RLock+0x58									/opt/hostedtoolcache/go/1.18.10/x64/src/sync/rwmutex.go:63
+	//#	0x891472	github.com/ochinchina/supervisord/process.(*Process).GetPid+0x32				/home/runner/work/supervisord/supervisord/process/process.go:251
+	//#	0x89769c	github.com/ochinchina/supervisord/process.(*Process).createStdoutLogEventEmitter.func1+0x1c	/home/runner/work/supervisord/supervisord/process/process.go:820
+	//#	0x78529b	github.com/ochinchina/supervisord/logger.(*StdLogEventEmitter).emitLogEvent+0x5b		/home/runner/work/supervisord/supervisord/logger/log.go:543
+	//#	0x78425d	github.com/ochinchina/supervisord/logger.(*FileLogger).Write+0x11d				/home/runner/work/supervisord/supervisord/logger/log.go:263
+	//#	0x785b81	github.com/ochinchina/supervisord/logger.(*CompositeLogger).Write+0x141				/home/runner/work/supervisord/supervisord/logger/log.go:621
+
+	//3 @ 0x43c7f6 0x44d353 0x44d32d 0x468ac5 0x475925 0x785cd1 0x785cb3 0x894851 0x46cae1
+	//#	0x468ac4	sync.runtime_SemacquireMutex+0x24					/opt/hostedtoolcache/go/1.18.10/x64/src/runtime/sema.go:71
+	//#	0x475924	sync.(*Mutex).lockSlow+0x164						/opt/hostedtoolcache/go/1.18.10/x64/src/sync/mutex.go:162
+	//#	0x785cd0	sync.(*Mutex).Lock+0x50							/opt/hostedtoolcache/go/1.18.10/x64/src/sync/mutex.go:81
+	//#	0x785cb2	github.com/ochinchina/supervisord/logger.(*CompositeLogger).Close+0x32	/home/runner/work/supervisord/supervisord/logger/log.go:631
+	//#	0x894850	github.com/ochinchina/supervisord/process.(*Process).run.func2+0x90	/home/runner/work/supervisord/supervisord/process/process.go:599
 	loggers []Logger
 }
 
@@ -613,8 +628,8 @@ func (cl *CompositeLogger) RemoveLogger(logger Logger) {
 
 // Write dispatches log data to the loggers in CompositeLogger pool
 func (cl *CompositeLogger) Write(p []byte) (n int, err error) {
-	cl.lock.Lock()
-	defer cl.lock.Unlock()
+	cl.lock.RLock()
+	defer cl.lock.RUnlock()
 
 	for i, logger := range cl.loggers {
 		if i == 0 {
@@ -628,8 +643,8 @@ func (cl *CompositeLogger) Write(p []byte) (n int, err error) {
 
 // Close all loggers in CompositeLogger pool
 func (cl *CompositeLogger) Close() (err error) {
-	cl.lock.Lock()
-	defer cl.lock.Unlock()
+	cl.lock.RLock()
+	defer cl.lock.RUnlock()
 
 	for i, logger := range cl.loggers {
 		if i == 0 {
@@ -643,8 +658,8 @@ func (cl *CompositeLogger) Close() (err error) {
 
 // SetPid sets pid to all loggers in CompositeLogger pool
 func (cl *CompositeLogger) SetPid(pid int) {
-	cl.lock.Lock()
-	defer cl.lock.Unlock()
+	cl.lock.RLock()
+	defer cl.lock.RUnlock()
 
 	for _, logger := range cl.loggers {
 		logger.SetPid(pid)
