@@ -530,7 +530,6 @@ func (p *Process) internalRun() (err error, needRetry bool) {
 	// first start time is not the retry time
 	if atomic.LoadInt32(p.retryTimes) >= p.getStartRetries() {
 		return fmt.Errorf("fail to start program because retry times is greater than %d", p.getStartRetries()), false
-
 	}
 	restartPause := p.getRestartPause()
 	if restartPause > 0 && atomic.LoadInt32(p.retryTimes) != 0 {
@@ -662,13 +661,15 @@ func (p *Process) run(finishCb func()) {
 	// process is not expired and not stoped by user
 	for !p.stopByUser {
 
+		log.WithFields(log.Fields{"program": p.GetName()}).Info("starting new run")
 		// state -> Starting / Backoff
 		err, needRetry := p.internalRun()
+		log.WithFields(log.Fields{"program": p.GetName()}).Infof("current run finished, needRetry: %v", needRetry)
 		if needRetry {
 			if err == nil {
 				panic("unexpected return from internalRun")
 			}
-			log.WithFields(log.Fields{"program": p.GetName()}).Info("%s", err)
+			log.WithFields(log.Fields{"program": p.GetName()}).Info(err.Error())
 			continue
 		} else {
 			if err != nil {
